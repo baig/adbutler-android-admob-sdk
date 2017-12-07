@@ -197,8 +197,8 @@ public class AdButlerAdView extends WebView {
 
                     // Calculate the layout width and height
                     DisplayMetrics displayMetrics = Resources.getSystem().getDisplayMetrics();
-                    Integer actualRenderWidth = Math.round(placement.getWidth() * displayMetrics.density);
-                    Integer actualRenderHeight = Math.round(placement.getHeight() * displayMetrics.density);
+                    Integer actualRenderWidth = Math.round(mAdSize.getWidth() * displayMetrics.density);
+                    Integer actualRenderHeight = Math.round(mAdSize.getHeight() * displayMetrics.density);
                     adView.setLayoutParams(new FrameLayout.LayoutParams(actualRenderWidth, actualRenderHeight));
 
                     // Load the ad markup into the view

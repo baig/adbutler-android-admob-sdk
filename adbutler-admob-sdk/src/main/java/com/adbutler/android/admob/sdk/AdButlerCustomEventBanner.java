@@ -102,8 +102,6 @@ public class AdButlerCustomEventBanner implements CustomEventBanner {
 
         mAdButlerAdView = new AdButlerAdView(context);
 
-        // Assumes that the serverParameter is the AdUnit for the Sample Network.
-        //mAdButlerAdView.setAdUnit(serverParameter);
         mAdButlerAdView.setAccount(accountId);
         mAdButlerAdView.setZone(zoneId);
         mAdButlerAdView.setZoneWidth(zoneWidth);
