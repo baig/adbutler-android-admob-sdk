@@ -26,11 +26,6 @@ public class AdButlerCustomBannerEventForwarder extends AdButlerAdListener {
     @Override
     public void onAdFetchSucceeded() {
         mBannerListener.onAdLoaded(mAdView);
-
-        // Fetch successful, record an impression.
-        if (mAdView.placement != null) {
-            mAdView.placement.recordImpression();
-        }
     }
 
     @Override
