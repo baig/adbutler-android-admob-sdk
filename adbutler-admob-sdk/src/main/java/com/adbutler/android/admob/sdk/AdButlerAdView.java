@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.Resources;
+import android.graphics.Canvas;
 import android.net.Uri;
 import android.util.DisplayMetrics;
 import android.util.Log;
@@ -26,8 +27,6 @@ import java.util.Calendar;
  */
 public class AdButlerAdView extends WebView {
 
-    public Placement placement;
-
     private Integer accountID;
     private Integer zoneID;
     private Integer zoneWidth;
@@ -35,6 +34,8 @@ public class AdButlerAdView extends WebView {
 
     private AdButlerAdSize mAdSize;
     private AdButlerAdListener mListener;
+
+    private FrameLayout.LayoutParams calculatedLayout;
 
     /**
      * Create a new {@link AdButlerAdView}.
@@ -98,7 +99,7 @@ public class AdButlerAdView extends WebView {
      * @return String
      */
     public String getAdMarkup(String body) {
-        return "<!DOCTYPE HTML><html><head><style>html,body{padding:0;margin:0;}iframe{border:0;overflow:none;}</style></head><body>"
+        return "<!DOCTYPE HTML><html><head><style>html,body{padding:0;margin:0;background:transparent;}iframe{border:0;overflow:none;}</style></head><body>"
                 + body + "</body></html>";
     }
 
@@ -119,9 +120,29 @@ public class AdButlerAdView extends WebView {
             return;
         }
 
-        // TODO move this inside the success state of loading placements from adbutler
-        mListener.onAdFetchSucceeded();
+        // Calculate the layout width and height
+        DisplayMetrics displayMetrics = Resources.getSystem().getDisplayMetrics();
+        Integer actualRenderWidth = Math.round(mAdSize.getWidth() * displayMetrics.density);
+        Integer actualRenderHeight = Math.round(mAdSize.getHeight() * displayMetrics.density);
+        Log.d("Ads/AdButler", "Layout: actualRenderWidth="+actualRenderWidth + ", actualRenderHeight="+actualRenderHeight);
+        this.calculatedLayout = new FrameLayout.LayoutParams(actualRenderWidth, actualRenderHeight);
 
+        // WebView settings
+        WebSettings settings = this.getSettings();
+        settings.setJavaScriptEnabled(true);
+        settings.setDomStorageEnabled(true);
+
+        // Disable scrolling
+        this.setScrollContainer(false);
+        this.setVerticalScrollBarEnabled(false);
+        this.setHorizontalScrollBarEnabled(false);
+
+
+        //
+        // PASS TO ADBUTLER
+        //
+
+        Log.d("Ads/AdButler", "Requesting ad from AdButler...");
         final PlacementRequestConfig config = new PlacementRequestConfig.Builder(this.accountID, this.zoneID, this.zoneWidth, this.zoneHeight)
                 .build();
 
@@ -143,28 +164,7 @@ public class AdButlerAdView extends WebView {
                     mListener.onAdFetchFailed(AdButlerErrorCode.NO_INVENTORY);
 
                 } else {
-                    adView.placement = placement;
                     final String placementRedirectURL = placement.getRedirectUrl();
-
-                    /*
-                     * Basic flow:
-                     *  - Configure WebView Settings
-                     *  - Disable scrolling
-                     *  - Configure touch listener
-                     *  - Calculate the layout width and height
-                     *  - Load markup into WebView
-                     *  - Finally, report fetch succeeded!
-                     */
-
-                    // WebView settings
-                    WebSettings settings = adView.getSettings();
-                    settings.setJavaScriptEnabled(true);
-                    settings.setDomStorageEnabled(true);
-
-                    // Disable scrolling
-                    adView.setScrollContainer(false);
-                    adView.setVerticalScrollBarEnabled(false);
-                    adView.setHorizontalScrollBarEnabled(false);
 
                     // Set up the OnTouchListener
                     adView.setOnTouchListener(new View.OnTouchListener() {
@@ -195,12 +195,6 @@ public class AdButlerAdView extends WebView {
                         }
                     });
 
-                    // Calculate the layout width and height
-                    DisplayMetrics displayMetrics = Resources.getSystem().getDisplayMetrics();
-                    Integer actualRenderWidth = Math.round(mAdSize.getWidth() * displayMetrics.density);
-                    Integer actualRenderHeight = Math.round(mAdSize.getHeight() * displayMetrics.density);
-                    adView.setLayoutParams(new FrameLayout.LayoutParams(actualRenderWidth, actualRenderHeight));
-
                     // Load the ad markup into the view
                     String markup = "";
                     if (placement.getBody().length() > 0) {
@@ -214,6 +208,9 @@ public class AdButlerAdView extends WebView {
 
                     // Fetch successful, record an impression.
                     placement.recordImpression();
+
+                    // Register successful ad fetch.
+                    mListener.onAdFetchSucceeded();
                 }
             }
 
@@ -228,6 +225,16 @@ public class AdButlerAdView extends WebView {
     @Override
     public boolean performClick() {
         return super.performClick();
+    }
+
+    @Override
+    protected void onDraw(Canvas canvas) {
+        super.onDraw(canvas);
+
+        // Before final draw, set the calculated layout to correctly indicate the dimensions of the ad.
+        if (null != this.calculatedLayout) {
+            this.setLayoutParams(this.calculatedLayout);
+        }
     }
 
     /**
