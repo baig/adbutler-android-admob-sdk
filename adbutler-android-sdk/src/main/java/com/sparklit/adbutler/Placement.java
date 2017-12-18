@@ -95,10 +95,10 @@ public class Placement {
      */
     public void recordImpression() {
         AdButler adButler = new AdButler();
-        if (getAccupixelUrl() != null) {
+        if (getAccupixelUrl() != null && getAccupixelUrl().length() > 0) {
             adButler.requestPixel(getAccupixelUrl());
         }
-        if (getTrackingPixel() != null) {
+        if (getTrackingPixel() != null && getTrackingPixel().length() > 0) {
             adButler.requestPixel(getTrackingPixel());
         }
     }
@@ -107,7 +107,7 @@ public class Placement {
      * Sends request to record click for this Placement.
      */
     public void recordClick() {
-        if (getRedirectUrl() != null) {
+        if (getRedirectUrl() != null && getRedirectUrl().length() > 0) {
             AdButler adButler = new AdButler();
             adButler.requestPixel(getRedirectUrl());
         }

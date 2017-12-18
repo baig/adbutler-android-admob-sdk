@@ -26,6 +26,7 @@ android {
 }
 
 dependencies {
+    compile fileTree(dir: 'libs', include: ['*.jar'])
     compile rootProject.ext.appcompatV7
     compile rootProject.ext.playServicesAds
     compile project(':adbutler-android-sdk');

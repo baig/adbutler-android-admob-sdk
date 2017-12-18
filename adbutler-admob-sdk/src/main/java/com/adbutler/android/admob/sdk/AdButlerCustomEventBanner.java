@@ -67,6 +67,7 @@ public class AdButlerCustomEventBanner implements CustomEventBanner {
                                 AdSize size,
                                 MediationAdRequest mediationAdRequest,
                                 Bundle customEventExtras) {
+
         /*
          * In this method, you should:
          *
@@ -123,20 +124,33 @@ public class AdButlerCustomEventBanner implements CustomEventBanner {
         // is handled by AdButlerCustomBannerEventForwarder.
         mAdButlerAdView.setAdListener(new AdButlerCustomBannerEventForwarder(listener, mAdButlerAdView));
 
-        // Make an ad request.
-        mAdButlerAdView.fetchAd(createSampleRequest(mediationAdRequest));
-    }
-
-    /**
-     * Helper method to create a {@link AdButlerAdRequest}.
-     *
-     * @param mediationAdRequest The mediation request with targeting information.
-     * @return The created {@link AdButlerAdRequest}.
-     */
-    private AdButlerAdRequest createSampleRequest(MediationAdRequest mediationAdRequest) {
+        // Build an ad request.
         AdButlerAdRequest request = new AdButlerAdRequest();
         request.setTestMode(mediationAdRequest.isTesting());
         request.setKeywords(mediationAdRequest.getKeywords());
-        return request;
+        request.setLocation(mediationAdRequest.getLocation());
+        request.setBirthday(mediationAdRequest.getBirthday());
+        request.setGender(mediationAdRequest.getGender());
+
+        if (null != customEventExtras) {
+            // Custom extras
+            Integer age = (Integer) customEventExtras.get("age");
+            if (null != age) {
+                request.setAge(age);
+            }
+
+            Integer yearOfBirth = (Integer) customEventExtras.get("yearOfBirth");
+            if (null != yearOfBirth) {
+                request.setYearOfBirth(yearOfBirth);
+            }
+
+            Integer coppa = (Integer) customEventExtras.get("coppa");
+            if (null != coppa) {
+                request.setCoppa(coppa);
+            }
+        }
+
+        // Fetch an ad.
+        mAdButlerAdView.fetchAd(request);
     }
 }

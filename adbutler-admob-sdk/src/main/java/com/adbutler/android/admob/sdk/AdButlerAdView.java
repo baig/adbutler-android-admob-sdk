@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.res.Resources;
 import android.graphics.Canvas;
+import android.location.Location;
 import android.net.Uri;
 import android.util.DisplayMetrics;
 import android.util.Log;
@@ -12,9 +13,14 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
+import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 
+import com.google.android.gms.ads.AdRequest;
 import com.sparklit.adbutler.AdButler;
+import com.sparklit.adbutler.AdButlerAppInfo;
+import com.sparklit.adbutler.AdButlerDeviceInfo;
+import com.sparklit.adbutler.AdButlerNetworkInfo;
 import com.sparklit.adbutler.Placement;
 import com.sparklit.adbutler.PlacementRequestConfig;
 import com.sparklit.adbutler.PlacementResponse;
@@ -27,18 +33,22 @@ import java.util.Calendar;
  */
 public class AdButlerAdView extends WebView {
 
+    public Placement placement;
+
+    private AdButlerAdSize mAdSize;
+    private AdButlerAdListener mListener;
+
+    // AdButler data
     private Integer accountID;
     private Integer zoneID;
     private Integer zoneWidth;
     private Integer zoneHeight;
 
-    private AdButlerAdSize mAdSize;
-    private AdButlerAdListener mListener;
-
     private FrameLayout.LayoutParams calculatedLayout;
 
     /**
      * Create a new {@link AdButlerAdView}.
+     *
      * @param context An Android {@link Context}.
      */
     public AdButlerAdView(Context context) {
@@ -46,7 +56,6 @@ public class AdButlerAdView extends WebView {
     }
 
     /**
-     *
      * @param accountID The account ID.
      */
     public void setAccount(Integer accountID) {
@@ -54,7 +63,6 @@ public class AdButlerAdView extends WebView {
     }
 
     /**
-     *
      * @param zoneID The zone ID to serve.
      */
     public void setZone(Integer zoneID) {
@@ -62,7 +70,6 @@ public class AdButlerAdView extends WebView {
     }
 
     /**
-     *
      * @param zoneWidth The width of this zone.
      */
     public void setZoneWidth(Integer zoneWidth) {
@@ -70,7 +77,6 @@ public class AdButlerAdView extends WebView {
     }
 
     /**
-     *
      * @param zoneHeight The height of this zone.
      */
     public void setZoneHeight(Integer zoneHeight) {
@@ -79,6 +85,7 @@ public class AdButlerAdView extends WebView {
 
     /**
      * Sets the size of the banner.
+     *
      * @param size The banner size.
      */
     public void setSize(AdButlerAdSize size) {
@@ -87,6 +94,7 @@ public class AdButlerAdView extends WebView {
 
     /**
      * Sets a {@link AdButlerAdListener} to listen for ad events.
+     *
      * @param listener The ad listener.
      */
     public void setAdListener(AdButlerAdListener listener) {
@@ -95,6 +103,7 @@ public class AdButlerAdView extends WebView {
 
     /**
      * Get the actual ad markup.
+     *
      * @param body The ad body.
      * @return String
      */
@@ -105,10 +114,13 @@ public class AdButlerAdView extends WebView {
 
     /**
      * Fetch an ad from AdButler.
+     *
      * @param request The ad request with targeting information.
      */
     public void fetchAd(AdButlerAdRequest request) {
         final AdButlerAdView adView = this;
+
+        AdButler AdButlerSDK = AdButler.getInstance();
 
         Log.d("Ads/AdButler", "In AdButlerAdView.fetchAd()");
         if (mListener == null) {
@@ -120,11 +132,16 @@ public class AdButlerAdView extends WebView {
             return;
         }
 
+        // Gather required info now that we know we need it.
+        AdButlerAppInfo appInfo = AdButlerSDK.appInfo;
+        AdButlerDeviceInfo deviceInfo = AdButlerSDK.deviceInfo;
+        AdButlerNetworkInfo networkInfo = AdButlerSDK.networkInfo;
+
         // Calculate the layout width and height
         DisplayMetrics displayMetrics = Resources.getSystem().getDisplayMetrics();
         Integer actualRenderWidth = Math.round(mAdSize.getWidth() * displayMetrics.density);
         Integer actualRenderHeight = Math.round(mAdSize.getHeight() * displayMetrics.density);
-        Log.d("Ads/AdButler", "Layout: actualRenderWidth="+actualRenderWidth + ", actualRenderHeight="+actualRenderHeight);
+        Log.d("Ads/AdButler", "Layout: actualRenderWidth=" + actualRenderWidth + ", actualRenderHeight=" + actualRenderHeight);
         this.calculatedLayout = new FrameLayout.LayoutParams(actualRenderWidth, actualRenderHeight);
 
         // WebView settings
@@ -142,11 +159,115 @@ public class AdButlerAdView extends WebView {
         // PASS TO ADBUTLER
         //
 
-        Log.d("Ads/AdButler", "Requesting ad from AdButler...");
-        final PlacementRequestConfig config = new PlacementRequestConfig.Builder(this.accountID, this.zoneID, this.zoneWidth, this.zoneHeight)
-                .build();
+        Calendar nowInstance = Calendar.getInstance();
+        int currentYear = nowInstance.get(Calendar.YEAR);
 
-        AdButler AdButlerSDK = new AdButler();
+        Location loc;
+        Calendar birthdayCalendar = null;
+        int age = 0;
+        int yearOfBirth = 0;
+
+        if (null != request.getBirthday()) {
+            birthdayCalendar = Calendar.getInstance();
+            birthdayCalendar.setTime(request.getBirthday());
+        }
+
+        //
+        loc = request.getLocation();
+
+        //
+        if (request.getAge() > 0) {
+            age = request.getAge();
+        }
+        if (request.getYearOfBirth() > 0) {
+            yearOfBirth = request.getYearOfBirth();
+        }
+
+        // try to fill age in through secondary methods
+        if (age <= 0) {
+            if (yearOfBirth > 0) {
+                age = currentYear - yearOfBirth;
+            } else if (null != birthdayCalendar) {
+                age = currentYear - birthdayCalendar.get(Calendar.YEAR);
+            }
+        }
+        // try to fill in year of birth through secondary methods
+        if (yearOfBirth <= 0) {
+            if (age > 0) {
+                yearOfBirth = currentYear - age;
+            } else if (null != birthdayCalendar) {
+                yearOfBirth = birthdayCalendar.get(Calendar.YEAR);
+            }
+        }
+
+
+        // Begin request build.
+        PlacementRequestConfig.Builder requestBuilder = new PlacementRequestConfig.Builder(this.accountID, this.zoneID, this.zoneWidth, this.zoneHeight);
+
+        // Advertising ID & DNT
+        if (null != AdButler.AdvertisingInfo.advertisingId) {
+            requestBuilder
+                    .setAdvertisingId(AdButler.AdvertisingInfo.advertisingId)
+                    .setDoNotTrack(AdButler.AdvertisingInfo.limitAdTrackingEnabled ? 1 : 0);
+        }
+
+        // Location
+        if (loc != null) {
+            requestBuilder.setLatitude(loc.getLatitude());
+            requestBuilder.setLongitude(loc.getLongitude());
+        }
+
+        // Age & year of birth
+        if (age > 0) {
+            requestBuilder.setAge(age);
+        }
+        switch (request.getGender()) {
+            case AdRequest.GENDER_MALE:
+                requestBuilder.setGender("male");
+                break;
+            case AdRequest.GENDER_FEMALE:
+                requestBuilder.setGender("female");
+                break;
+            default:
+            case AdRequest.GENDER_UNKNOWN:
+                requestBuilder.setGender("unknown");
+                break;
+        }
+        if (yearOfBirth > 0) {
+            requestBuilder.setYearOfBirth(yearOfBirth);
+        }
+
+        // App
+        requestBuilder.setAppName(appInfo.appName);
+        requestBuilder.setAppPackageName(appInfo.packageName);
+
+        // Device
+        requestBuilder.setLanguage(deviceInfo.language);
+        requestBuilder.setOsName(deviceInfo.osName);
+        requestBuilder.setOsVersion(deviceInfo.osVersion);
+        requestBuilder.setDeviceType(deviceInfo.isTablet ? "tablet" : "phone");
+        requestBuilder.setDeviceModel(deviceInfo.model);
+        requestBuilder.setDeviceManufacturer(deviceInfo.manufacturer);
+        requestBuilder.setScreenWidth(deviceInfo.screenWidth);
+        requestBuilder.setScreenHeight(deviceInfo.screenHeight);
+        requestBuilder.setScreenPixelDensity(deviceInfo.screenPixelDensity);
+
+        // Network
+        requestBuilder.setNetworkClass(networkInfo.networkClass);
+        requestBuilder.setCarrierCountryIso(networkInfo.carrierCountryIso);
+        requestBuilder.setCarrier(networkInfo.carrierName);
+        requestBuilder.setCarrierCode(networkInfo.carrierCode);
+
+        // Compliance
+        requestBuilder.setCoppa(request.getCoppa());
+
+        // Finalize request config build.
+        final PlacementRequestConfig config = requestBuilder.build();
+
+
+        Log.d("Ads/AdButler", "Requesting ad from AdButler...");
+
+
         AdButlerSDK.requestPlacement(config, new PlacementResponseListener() {
             @SuppressLint("ClickableViewAccessibility")
             @Override
@@ -164,6 +285,9 @@ public class AdButlerAdView extends WebView {
                     mListener.onAdFetchFailed(AdButlerErrorCode.NO_INVENTORY);
 
                 } else {
+                    // Register the selected placement.
+                    adView.placement = placement;
+
                     final String placementRedirectURL = placement.getRedirectUrl();
 
                     // Set up the OnTouchListener
@@ -173,14 +297,14 @@ public class AdButlerAdView extends WebView {
 
                         @Override
                         public boolean onTouch(View view, MotionEvent motionEvent) {
-                            switch(motionEvent.getAction()) {
+                            switch (motionEvent.getAction()) {
                                 case MotionEvent.ACTION_DOWN:
                                     clickStartTime = Calendar.getInstance().getTimeInMillis();
                                     break;
 
                                 case MotionEvent.ACTION_UP:
                                     long clickDuration = Calendar.getInstance().getTimeInMillis() - clickStartTime;
-                                    if(clickDuration < MAX_CLICK_DURATION) {
+                                    if (clickDuration < MAX_CLICK_DURATION) {
                                         Intent intent = new Intent(Intent.ACTION_VIEW);
                                         intent.setData(Uri.parse(placementRedirectURL));
                                         adView.getContext().startActivity(intent);

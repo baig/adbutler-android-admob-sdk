@@ -16,15 +16,19 @@
 
 package com.google.ads.mediation.sample.mediationsample;
 
-import android.content.res.Resources;
+import android.location.Location;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
-import android.util.DisplayMetrics;
 import android.util.Log;
 
+import com.adbutler.android.admob.sdk.AdButlerCustomEventBanner;
 import com.google.android.gms.ads.AdListener;
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdView;
+import com.sparklit.adbutler.AdButler;
+
+import java.util.Calendar;
+import java.util.Random;
 
 /**
  * A simple {@link android.app.Activity} that displays adds using the sample adapter and sample
@@ -40,10 +44,29 @@ public class MainActivity extends AppCompatActivity {
 
         Log.d("Ads/AdButler", "In onCreate in MainActivity");
 
+        // Required, initialize AdButler SDK first as early as possible in Main Activity.
+        AdButler.initialize(this);
+
+        // Example data.
+        Calendar userBirthday = getUserBirthday();
+        int userGender = getUserGender();
+        Location userLocation = getUserLocation();
+
+        // Optional extras
+        Bundle AdButlerExtras = new Bundle();
+        AdButlerExtras.putInt("age", 123);
+        AdButlerExtras.putInt("yearOfBirth", 1234);
+        AdButlerExtras.putInt("coppa", 1);
+
+
         // Sample custom event banner.
         AdView mCustomEventAdView = (AdView) findViewById(R.id.customevent_adview);
         AdRequest mCustomEventRequest = new AdRequest.Builder()
                 //.addTestDevice("A62F5EE59078F0657513309CE9D874BF")
+                .setBirthday(userBirthday.getTime())
+                .setGender(userGender)
+                .setLocation(userLocation)
+                .addCustomEventExtrasBundle(AdButlerCustomEventBanner.class, AdButlerExtras)
                 .build();
 
         mCustomEventAdView.setAdListener(new AdListener() {
@@ -83,5 +106,33 @@ public class MainActivity extends AppCompatActivity {
         mCustomEventAdView.loadAd(mCustomEventRequest);
 
         Log.d("Ads/AdButler", "After mCustomEventAdView.loadAd() was called");
+    }
+
+    // dummy birthday
+    public Calendar getUserBirthday() {
+        Calendar birthdayCalendar = Calendar.getInstance();
+        birthdayCalendar.set(Calendar.YEAR, 1980);
+        birthdayCalendar.set(Calendar.MONTH, 1);
+        birthdayCalendar.set(Calendar.DAY_OF_MONTH, 1);
+        birthdayCalendar.set(Calendar.HOUR_OF_DAY, 0);
+        birthdayCalendar.set(Calendar.MINUTE, 0);
+        birthdayCalendar.set(Calendar.SECOND, 0);
+        birthdayCalendar.set(Calendar.MILLISECOND, 0);
+        return birthdayCalendar;
+    }
+
+    // dummy gender
+    public int getUserGender() {
+        Random rand = new Random();
+        int i = rand.nextInt(3);
+        int[] genders = {AdRequest.GENDER_UNKNOWN, AdRequest.GENDER_MALE, AdRequest.GENDER_FEMALE};
+        return genders[i];
+    }
+
+    public Location getUserLocation() {
+        Location loc = new Location("Dummy");
+        loc.setLatitude(37.4220);
+        loc.setLongitude(122.0841);
+        return loc;
     }
 }
