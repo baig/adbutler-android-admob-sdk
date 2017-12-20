@@ -21,6 +21,7 @@ android {
             debuggable true
             jniDebuggable true
             minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
 }
@@ -29,6 +30,7 @@ dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
     compile rootProject.ext.appcompatV7
     compile rootProject.ext.playServicesAds
+
+    compile project(':adbutler-admob-sdk');
     compile project(':adbutler-android-sdk');
-    compile project(':adbutler-admob-sdk')
 }

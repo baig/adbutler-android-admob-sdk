@@ -45,17 +45,4 @@ public class AdButlerCustomBannerEventForwarder extends AdButlerAdListener {
                 break;
         }
     }
-
-    @Override
-    public void onAdFullScreen() {
-        mBannerListener.onAdClicked();
-        mBannerListener.onAdOpened();
-        // Only call onAdLeftApplication if your ad network actually exits the developer's app.
-        mBannerListener.onAdLeftApplication();
-    }
-
-    @Override
-    public void onAdClosed() {
-        mBannerListener.onAdClosed();
-    }
 }

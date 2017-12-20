@@ -133,9 +133,15 @@ public class AdButlerAdView extends WebView {
         }
 
         // Gather required info now that we know we need it.
-        AdButlerAppInfo appInfo = AdButlerSDK.appInfo;
-        AdButlerDeviceInfo deviceInfo = AdButlerSDK.deviceInfo;
-        AdButlerNetworkInfo networkInfo = AdButlerSDK.networkInfo;
+
+        AdButlerAppInfo appInfo = new AdButlerAppInfo();
+        appInfo.initialize(getContext());
+
+        AdButlerDeviceInfo deviceInfo = new AdButlerDeviceInfo();
+        deviceInfo.initialize();
+
+        AdButlerNetworkInfo networkInfo = new AdButlerNetworkInfo();
+        networkInfo.initialize(getContext());
 
         // Calculate the layout width and height
         DisplayMetrics displayMetrics = Resources.getSystem().getDisplayMetrics();

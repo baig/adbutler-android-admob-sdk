@@ -34,11 +34,6 @@ public class AdButler {
 
     private static AdButler instance;
 
-    public AdButlerAppInfo appInfo;
-    public AdButlerDeviceInfo deviceInfo;
-    public AdButlerNetworkInfo networkInfo;
-
-
     public static AdButler getInstance() {
         if (null == instance) {
             instance = new AdButler();
@@ -49,32 +44,7 @@ public class AdButler {
     public static void initialize(Context context) {
         AdButler AdButlerSDK = AdButler.getInstance();
         AdButlerSDK.loadAdvertisingInfoViaTask(context);
-        AdButlerSDK.initializeAdButlerAppInfo(context);
-        AdButlerSDK.initializeAdButlerDeviceInfo();
-        AdButlerSDK.initializeAdButlerNetworkInfo(context);
     }
-
-    private void initializeAdButlerAppInfo(Context context) {
-        if (appInfo == null) {
-            appInfo = new AdButlerAppInfo();
-            appInfo.initialize(context);
-        }
-    }
-
-    private void initializeAdButlerDeviceInfo() {
-        if (deviceInfo == null) {
-            deviceInfo = new AdButlerDeviceInfo();
-            deviceInfo.initialize();
-        }
-    }
-
-    private void initializeAdButlerNetworkInfo(Context context) {
-        if (networkInfo == null) {
-            networkInfo = new AdButlerNetworkInfo();
-            networkInfo.initialize(context);
-        }
-    }
-
 
     /**
      * Requests a pixel.
