@@ -108,7 +108,7 @@ public class AdButlerAdView extends WebView {
      * @return String
      */
     public String getAdMarkup(String body) {
-        return "<!DOCTYPE HTML><html><head><style>html,body{padding:0;margin:0;background:transparent;}iframe{border:0;overflow:none;}</style></head><body>"
+        return "<!DOCTYPE HTML><html><head><style>html,body{padding:0;margin:0;background:transparent;}iframe{border:0;overflow:none;}a{outline:0;-webkit-tap-highlight-color:transparent;}</style></head><body>"
                 + body + "</body></html>";
     }
 
@@ -298,30 +298,35 @@ public class AdButlerAdView extends WebView {
 
                     // Set up the OnTouchListener
                     adView.setOnTouchListener(new View.OnTouchListener() {
-                        private static final int MAX_CLICK_DURATION = 200;
-                        private long clickStartTime;
+//                        private static final int MAX_CLICK_DURATION = 200;
+//                        private long clickStartTime;
 
                         @Override
                         public boolean onTouch(View view, MotionEvent motionEvent) {
-                            switch (motionEvent.getAction()) {
-                                case MotionEvent.ACTION_DOWN:
-                                    clickStartTime = Calendar.getInstance().getTimeInMillis();
-                                    break;
+                            boolean preventTouch = false;
 
-                                case MotionEvent.ACTION_UP:
-                                    long clickDuration = Calendar.getInstance().getTimeInMillis() - clickStartTime;
-                                    if (clickDuration < MAX_CLICK_DURATION) {
-                                        Intent intent = new Intent(Intent.ACTION_VIEW);
-                                        intent.setData(Uri.parse(placementRedirectURL));
-                                        adView.getContext().startActivity(intent);
-                                    }
-                                    break;
+                            switch (motionEvent.getAction()) {
+//                                case MotionEvent.ACTION_DOWN:
+//                                    clickStartTime = Calendar.getInstance().getTimeInMillis();
+//                                    preventTouch = true;
+//                                    break;
+//
+//                                case MotionEvent.ACTION_UP:
+//                                    long clickDuration = Calendar.getInstance().getTimeInMillis() - clickStartTime;
+//                                    if (clickDuration < MAX_CLICK_DURATION) {
+//                                        Intent intent = new Intent(Intent.ACTION_VIEW);
+//                                        intent.setData(Uri.parse(placementRedirectURL));
+//                                        adView.getContext().startActivity(intent);
+//                                        preventTouch = false;
+//                                    }
+//                                    break;
 
                                 case MotionEvent.ACTION_MOVE:
+                                    preventTouch = true;
                                     break;
                             }
 
-                            return true;
+                            return preventTouch;
                         }
                     });
 
@@ -330,7 +335,15 @@ public class AdButlerAdView extends WebView {
                     if (placement.getBody().length() > 0) {
                         markup = getAdMarkup(placement.getBody());
                     } else {
-                        markup = getAdMarkup("<img src=\"" + placement.getImageUrl() + "\">");
+                        String markupBody = "";
+                        if (placementRedirectURL.length() > 0) {
+                            markupBody += "<a href=\"" + placementRedirectURL + "\" target=\"_blank\">";
+                        }
+                        markupBody += "<img src=\"" + placement.getImageUrl() + "\">";
+                        if (placementRedirectURL.length() > 0) {
+                            markupBody += "</a>";
+                        }
+                        markup = getAdMarkup(markupBody);
                     }
                     adView.loadData(markup, "text/html; charset=utf-8", "UTF-8");
 
