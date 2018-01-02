@@ -1,16 +1,22 @@
 package com.adbutler.android.admob.sdk;
 
 import android.annotation.SuppressLint;
+import android.annotation.TargetApi;
 import android.content.Context;
-import android.content.Intent;
 import android.content.res.Resources;
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.location.Location;
-import android.net.Uri;
+import android.net.http.SslError;
+import android.os.Build;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
+import android.webkit.SslErrorHandler;
+import android.webkit.WebResourceError;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -108,7 +114,7 @@ public class AdButlerAdView extends WebView {
      * @return String
      */
     public String getAdMarkup(String body) {
-        return "<!DOCTYPE HTML><html><head><style>html,body{padding:0;margin:0;background:transparent;}iframe{border:0;overflow:none;}a{outline:0;-webkit-tap-highlight-color:transparent;}</style></head><body>"
+        return "<!DOCTYPE HTML><html><head><link rel=\"icon\" href=\"data:;base64,iVBORw0KGgo=\"><style>html,body{padding:0;margin:0;background:transparent;}iframe{border:0;overflow:none;}a{outline:0;-webkit-tap-highlight-color:transparent;}</style></head><body>"
                 + body + "</body></html>";
     }
 
@@ -119,6 +125,64 @@ public class AdButlerAdView extends WebView {
      */
     public void fetchAd(AdButlerAdRequest request) {
         final AdButlerAdView adView = this;
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            WebView.setWebContentsDebuggingEnabled(true);
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            Log.d("Ads/AdButler", "Registering debugging events on the WebView component.");
+            this.setWebViewClient(new WebViewClient() {
+
+                @Override
+                public void onPageStarted(WebView view, String url, Bitmap favicon) {
+                    Log.d("Ads/AdButler", "onPageStarted: " + url);
+                    super.onPageStarted(view, url, favicon);
+                }
+
+                @Override
+                public void onPageFinished(WebView view, String url) {
+                    Log.d("Ads/AdButler", "onPageFinished: " + url);
+                    super.onPageFinished(view, url);
+                }
+
+                @Override
+                public void onLoadResource(WebView view, String url) {
+                    Log.d("Ads/AdButler", "Loading URL: " + url);
+                    super.onLoadResource(view, url);
+                }
+
+                @Override
+                public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
+                    Log.d("Ads/AdButler", "onReceivedError: " + failingUrl);
+                    Log.d("Ads/AdButler", "onReceivedError Error: " + errorCode + ", " + description);
+                    super.onReceivedError(view, errorCode, description, failingUrl);
+                }
+
+                @TargetApi(Build.VERSION_CODES.M)
+                @Override
+                public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+                    Log.d("Ads/AdButler", "onReceivedError: " + request.getUrl());
+                    Log.d("Ads/AdButler", "onReceivedError Error: " + error.getErrorCode() + ", " + error.getDescription());
+                    super.onReceivedError(view, request, error);
+                }
+
+                @TargetApi(Build.VERSION_CODES.M)
+                @Override
+                public void onReceivedHttpError(WebView view, WebResourceRequest request, WebResourceResponse errorResponse) {
+                    Log.d("Ads/AdButler", "onReceivedHttpError: " + request.getUrl());
+                    Log.d("Ads/AdButler", "onReceivedHttpError Status: " + errorResponse.getStatusCode());
+                    super.onReceivedHttpError(view, request, errorResponse);
+                }
+
+                @Override
+                public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
+                    Log.d("Ads/AdButler", "onReceivedSslError: " + error.getUrl());
+                    Log.d("Ads/AdButler", "onReceivedSslError Status: " + error.getPrimaryError());
+                    super.onReceivedSslError(view, handler, error);
+                }
+            });
+        }
 
         AdButler AdButlerSDK = AdButler.getInstance();
 
@@ -345,7 +409,8 @@ public class AdButlerAdView extends WebView {
                         }
                         markup = getAdMarkup(markupBody);
                     }
-                    adView.loadData(markup, "text/html; charset=utf-8", "UTF-8");
+                    //adView.loadData(markup, "text/html; charset=utf-8", "UTF-8");
+                    adView.loadDataWithBaseURL("https://servedbyadbutler.com/placeholder.html", markup, "text/html; charset=utf-8", "UTF-8", null);
 
                     Log.d("Ads/AdButler", "Loading ad markup into view.");
 
