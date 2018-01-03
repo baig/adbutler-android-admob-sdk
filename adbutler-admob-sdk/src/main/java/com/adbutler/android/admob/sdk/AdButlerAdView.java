@@ -410,7 +410,7 @@ public class AdButlerAdView extends WebView {
                         markup = getAdMarkup(markupBody);
                     }
                     //adView.loadData(markup, "text/html; charset=utf-8", "UTF-8");
-                    adView.loadDataWithBaseURL("https://servedbyadbutler.com/placeholder.html", markup, "text/html; charset=utf-8", "UTF-8", null);
+                    adView.loadDataWithBaseURL("http://servedbyadbutler.com/placeholder.html", markup, "text/html; charset=utf-8", "UTF-8", null);
 
                     Log.d("Ads/AdButler", "Loading ad markup into view.");
 
