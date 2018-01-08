@@ -188,6 +188,7 @@ public class AdButlerAdView extends WebView {
 
         Log.d("Ads/AdButler", "In AdButlerAdView.fetchAd()");
         if (mListener == null) {
+            Log.e("Ads/AdButler", "Ad listener was not set, do NOT proceed. Terminating AdButler ad request.");
             return;
         }
 
@@ -218,6 +219,7 @@ public class AdButlerAdView extends WebView {
         WebSettings settings = this.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
+        settings.setDefaultTextEncodingName("utf-8");
 
         // Disable scrolling
         this.setScrollContainer(false);
@@ -337,7 +339,6 @@ public class AdButlerAdView extends WebView {
 
         Log.d("Ads/AdButler", "Requesting ad from AdButler...");
 
-
         AdButlerSDK.requestPlacement(config, new PlacementResponseListener() {
             @SuppressLint("ClickableViewAccessibility")
             @Override
@@ -346,13 +347,19 @@ public class AdButlerAdView extends WebView {
                     Log.d("Ads/AdButler", "BannerID: " + placement.getBannerId());
                 }
 
+                if (null == adView.mListener) {
+                    Log.e("Ads/AdButler", "Ad listener was null despite the earlier check.");
+                    return;
+                }
+
                 Placement placement = null;
                 if (response.getPlacements().size() > 0) {
                     placement = response.getPlacements().get(0);
                 }
 
-                if (placement == null) {
-                    mListener.onAdFetchFailed(AdButlerErrorCode.NO_INVENTORY);
+
+                if (null == placement) {
+                    adView.mListener.onAdFetchFailed(AdButlerErrorCode.NO_INVENTORY);
 
                 } else {
                     // Register the selected placement.
@@ -410,6 +417,7 @@ public class AdButlerAdView extends WebView {
                         markup = getAdMarkup(markupBody);
                     }
                     //adView.loadData(markup, "text/html; charset=utf-8", "UTF-8");
+                    //adView.loadDataWithBaseURL("http://servedbyadbutler.com/placeholder.html", markup, "text/html", "US-ASCII", null);
                     adView.loadDataWithBaseURL("http://servedbyadbutler.com/placeholder.html", markup, "text/html; charset=utf-8", "UTF-8", null);
 
                     Log.d("Ads/AdButler", "Loading ad markup into view.");
@@ -418,14 +426,14 @@ public class AdButlerAdView extends WebView {
                     placement.recordImpression();
 
                     // Register successful ad fetch.
-                    mListener.onAdFetchSucceeded();
+                    adView.mListener.onAdFetchSucceeded();
                 }
             }
 
             @Override
             public void error(Throwable throwable) {
                 Log.d("Ads/AdButler", "Zone request error occurred.");
-                mListener.onAdFetchFailed(AdButlerErrorCode.NETWORK_ERROR);
+                adView.mListener.onAdFetchFailed(AdButlerErrorCode.NETWORK_ERROR);
             }
         });
     }
