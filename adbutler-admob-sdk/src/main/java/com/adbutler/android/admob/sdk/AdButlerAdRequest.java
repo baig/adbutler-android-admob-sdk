@@ -45,6 +45,10 @@ public class AdButlerAdRequest {
         this.isTestMode = useTesting;
     }
 
+    public Boolean getTestMode() {
+        return isTestMode;
+    }
+
     /**
      * Sets the mediation location data.
      *

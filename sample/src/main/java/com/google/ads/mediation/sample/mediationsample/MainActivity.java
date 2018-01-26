@@ -54,8 +54,8 @@ public class MainActivity extends AppCompatActivity {
 
         // Optional extras
         Bundle AdButlerExtras = new Bundle();
-        AdButlerExtras.putInt("age", 123);
-        AdButlerExtras.putInt("yearOfBirth", 1234);
+        AdButlerExtras.putInt("age", 30);
+        AdButlerExtras.putInt("yearOfBirth", 1988);
         AdButlerExtras.putInt("coppa", 1);
 
 

@@ -185,6 +185,8 @@ public class AdButlerAdView extends WebView {
         }
 
         AdButler AdButlerSDK = AdButler.getInstance();
+        AdButlerSDK.setApiHostname("adbutler-fermion.com");
+        AdButlerSDK.setApiAppVersion("adserve-p");
 
         Log.d("Ads/AdButler", "In AdButlerAdView.fetchAd()");
         if (mListener == null) {

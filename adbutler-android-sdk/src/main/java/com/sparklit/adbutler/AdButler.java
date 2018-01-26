@@ -28,7 +28,9 @@ import retrofit2.converter.gson.GsonConverterFactory;
  * Makes requests against the AdButler API.
  */
 public class AdButler {
-    static String ADBUTLER_ENDPOINT = "https://servedbyadbutler.com/adserve/";
+
+    private String apiHostname = "servedbyadbutler.com";
+    private String apiAppVersion = "adserve";
 
     private APIService service;
 
@@ -44,6 +46,14 @@ public class AdButler {
     public static void initialize(Context context) {
         AdButler AdButlerSDK = AdButler.getInstance();
         AdButlerSDK.loadAdvertisingInfoViaTask(context);
+    }
+
+    public void setApiHostname(String apiHostname) {
+        this.apiHostname = apiHostname;
+    }
+
+    public void setApiAppVersion(String apiAppVersion) {
+        this.apiAppVersion = apiAppVersion;
     }
 
     /**
@@ -149,11 +159,12 @@ public class AdButler {
 
     private APIService getAPIService() {
         if (service == null) {
+            String baseUrl = "https://" + this.apiHostname + "/" + this.apiAppVersion + "/";
             Gson gson = new GsonBuilder()
                     .setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
                     .create();
             Retrofit.Builder builder = new Retrofit.Builder()
-                    .baseUrl(ADBUTLER_ENDPOINT)
+                    .baseUrl(baseUrl)
                     .addConverterFactory(GsonConverterFactory.create(gson));
             service = builder.build().create(APIService.class);
         }
