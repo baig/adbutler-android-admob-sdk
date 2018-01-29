@@ -114,7 +114,7 @@ public class AdButlerAdView extends WebView {
      * @return String
      */
     public String getAdMarkup(String body) {
-        return "<!DOCTYPE HTML><html><head><link rel=\"icon\" href=\"data:;base64,iVBORw0KGgo=\"><style>html,body{padding:0;margin:0;background:transparent;}iframe{border:0;overflow:none;}a{outline:0;-webkit-tap-highlight-color:transparent;}</style></head><body>"
+        return "<!DOCTYPE HTML><html><head><link rel=\"icon\" href=\"data:;base64,iVBORw0KGgo=\"><style>html,body{padding:0;margin:0;background:#333;}iframe{border:0;overflow:none;}a{outline:0;-webkit-tap-highlight-color:transparent;}body>*{margin:0 auto;width:" + this.zoneWidth + "px;display:block;}</style></head><body>"
                 + body + "</body></html>";
     }
 
