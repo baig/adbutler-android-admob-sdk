@@ -345,8 +345,15 @@ public class AdButlerAdView extends WebView {
             @SuppressLint("ClickableViewAccessibility")
             @Override
             public void success(PlacementResponse response) {
-                for (Placement placement : response.getPlacements()) {
-                    Log.d("Ads/AdButler", "BannerID: " + placement.getBannerId());
+
+                Placement placement = null;
+                final String placementRedirectURL;
+                String markup = "", body = "", encodedBody = "", wrapper = "";
+                boolean containsHtmlStart, containsHtmlEnd;
+
+
+                for (Placement placementEl : response.getPlacements()) {
+                    Log.d("Ads/AdButler", "BannerID: " + placementEl.getBannerId());
                 }
 
                 if (null == adView.mListener) {
@@ -354,7 +361,6 @@ public class AdButlerAdView extends WebView {
                     return;
                 }
 
-                Placement placement = null;
                 if (response.getPlacements().size() > 0) {
                     placement = response.getPlacements().get(0);
                 }
@@ -367,7 +373,7 @@ public class AdButlerAdView extends WebView {
                     // Register the selected placement.
                     adView.placement = placement;
 
-                    final String placementRedirectURL = placement.getRedirectUrl();
+                    placementRedirectURL = placement.getRedirectUrl();
 
                     // Set up the OnTouchListener
                     adView.setOnTouchListener(new View.OnTouchListener() {
@@ -403,31 +409,64 @@ public class AdButlerAdView extends WebView {
                         }
                     });
 
-                    // Load the ad markup into the view
-                    String markup = "";
+                    // Register onPageFinished event in the WebView to record an impression.
+                    adView.setWebViewClient(new WebViewClient() {
+                        @Override
+                        public void onPageFinished(WebView view, String url) {
+                            super.onPageFinished(view, url);
+
+                            // Fetch successful, record an impression.
+                            Log.d("Ads/AdButler", "WebView load complete, recording impression event.");
+                            adView.placement.recordImpression();
+                        }
+                    });
+
+                    // Prepare the markup returned by the request.
                     if (placement.getBody().length() > 0) {
-                        markup = getAdMarkup(placement.getBody());
+                        body = placement.getBody();
+                        containsHtmlStart = body.contains("<html") || body.contains("<HTML");
+                        containsHtmlEnd = body.contains("</html") || body.contains("</HTML");
+                        if (containsHtmlStart && containsHtmlEnd) {
+                            // If the response is a complete HTML document, inject into an iframe.
+                            try {
+                                encodedBody = EscapeJavaScriptString(body);
+
+                                wrapper += "<iframe id=\"adbutler-admob-frame\" frameborder=0 scrolling=no noresize=noresize marginheight=0 marginwidth=0 height=300 width=250></iframe>";
+                                wrapper += "<script>document.getElementById('adbutler-admob-frame').srcdoc = \"" + encodedBody + "\";</script>";
+                                markup = getAdMarkup(wrapper);
+
+                            } catch (Exception e) {
+                                Log.d("Ads/AdButler", "Failed to encode body String.");
+                            }
+
+                        } else {
+                            // If the response is an partial HTML document, inject it directly.
+                            markup = getAdMarkup(body);
+                        }
+
+                    } else if (placement.getImageUrl().length() > 0) {
+                        // If the response is an image.
+                        if (placementRedirectURL.length() > 0) {
+                            body += "<a href=\"" + placementRedirectURL + "\" target=\"_blank\">";
+                        }
+                        body += "<img src=\"" + placement.getImageUrl() + "\">";
+                        if (placementRedirectURL.length() > 0) {
+                            body += "</a>";
+                        }
+                        markup = getAdMarkup(body);
+
                     } else {
-                        String markupBody = "";
-                        if (placementRedirectURL.length() > 0) {
-                            markupBody += "<a href=\"" + placementRedirectURL + "\" target=\"_blank\">";
-                        }
-                        markupBody += "<img src=\"" + placement.getImageUrl() + "\">";
-                        if (placementRedirectURL.length() > 0) {
-                            markupBody += "</a>";
-                        }
-                        markup = getAdMarkup(markupBody);
+                        Log.d("Ads/AdButler", "Placement response was not in an expected format, serving a blank.");
                     }
                     //adView.loadData(markup, "text/html; charset=utf-8", "UTF-8");
                     //adView.loadDataWithBaseURL("http://servedbyadbutler.com/placeholder.html", markup, "text/html", "US-ASCII", null);
                     adView.loadDataWithBaseURL("http://servedbyadbutler.com/placeholder.html", markup, "text/html; charset=utf-8", "UTF-8", null);
 
-                    Log.d("Ads/AdButler", "Loading ad markup into view.");
-
                     // Fetch successful, record an impression.
-                    placement.recordImpression();
+                    //placement.recordImpression();
 
                     // Register successful ad fetch.
+                    Log.d("Ads/AdButler", "Loading ad markup into view.");
                     adView.mListener.onAdFetchSucceeded();
                 }
             }
@@ -453,6 +492,43 @@ public class AdButlerAdView extends WebView {
         if (null != this.calculatedLayout) {
             this.setLayoutParams(this.calculatedLayout);
         }
+    }
+
+    private String EscapeJavaScriptString(String param) {
+        char[] chars = param.toCharArray();
+
+        StringBuilder sb = new StringBuilder();
+
+        for (int i = 0; i < chars.length; i++) {
+            switch (chars[i]) {
+                case '"':
+                    sb.append("\\\"");
+                    break;
+                case '\\':
+                    sb.append("\\\\");
+                    break;
+                case '\n':
+                    sb.append("\\n");
+                    break;
+                case '\r':
+                    sb.append("\\r");
+                    break;
+                case '\b':
+                    sb.append("\\b");
+                    break;
+                case '\f':
+                    sb.append("\\f");
+                    break;
+                case '\t':
+                    sb.append("\\t");
+                    break;
+                default:
+                    sb.append(chars[i]);
+                    break;
+            }
+        }
+
+        return sb.toString();
     }
 
     /**
