@@ -3,10 +3,13 @@ package com.adbutler.android.admob.sdk;
 import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.content.Context;
+import android.content.Intent;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Rect;
 import android.location.Location;
+import android.net.Uri;
 import android.net.http.SslError;
 import android.os.Build;
 import android.util.DisplayMetrics;
@@ -51,6 +54,10 @@ public class AdButlerAdView extends WebView {
     private Integer zoneHeight;
 
     private FrameLayout.LayoutParams calculatedLayout;
+
+    private boolean isImpressionRecorded = false;
+    private boolean suppressCurrentClick = false;
+
 
     /**
      * Create a new {@link AdButlerAdView}.
@@ -126,62 +133,9 @@ public class AdButlerAdView extends WebView {
     public void fetchAd(AdButlerAdRequest request) {
         final AdButlerAdView adView = this;
 
+        // Permit Chrome Debugging if >KITKAT
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
             WebView.setWebContentsDebuggingEnabled(true);
-        }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            Log.d("Ads/AdButler", "Registering debugging events on the WebView component.");
-            this.setWebViewClient(new WebViewClient() {
-
-                @Override
-                public void onPageStarted(WebView view, String url, Bitmap favicon) {
-                    Log.d("Ads/AdButler", "onPageStarted: " + url);
-                    super.onPageStarted(view, url, favicon);
-                }
-
-                @Override
-                public void onPageFinished(WebView view, String url) {
-                    Log.d("Ads/AdButler", "onPageFinished: " + url);
-                    super.onPageFinished(view, url);
-                }
-
-                @Override
-                public void onLoadResource(WebView view, String url) {
-                    Log.d("Ads/AdButler", "Loading URL: " + url);
-                    super.onLoadResource(view, url);
-                }
-
-                @Override
-                public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
-                    Log.d("Ads/AdButler", "onReceivedError: " + failingUrl);
-                    Log.d("Ads/AdButler", "onReceivedError Error: " + errorCode + ", " + description);
-                    super.onReceivedError(view, errorCode, description, failingUrl);
-                }
-
-                @TargetApi(Build.VERSION_CODES.M)
-                @Override
-                public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
-                    Log.d("Ads/AdButler", "onReceivedError: " + request.getUrl());
-                    Log.d("Ads/AdButler", "onReceivedError Error: " + error.getErrorCode() + ", " + error.getDescription());
-                    super.onReceivedError(view, request, error);
-                }
-
-                @TargetApi(Build.VERSION_CODES.M)
-                @Override
-                public void onReceivedHttpError(WebView view, WebResourceRequest request, WebResourceResponse errorResponse) {
-                    Log.d("Ads/AdButler", "onReceivedHttpError: " + request.getUrl());
-                    Log.d("Ads/AdButler", "onReceivedHttpError Status: " + errorResponse.getStatusCode());
-                    super.onReceivedHttpError(view, request, errorResponse);
-                }
-
-                @Override
-                public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
-                    Log.d("Ads/AdButler", "onReceivedSslError: " + error.getUrl());
-                    Log.d("Ads/AdButler", "onReceivedSslError Status: " + error.getPrimaryError());
-                    super.onReceivedSslError(view, handler, error);
-                }
-            });
         }
 
         AdButler AdButlerSDK = AdButler.getInstance();
@@ -190,12 +144,16 @@ public class AdButlerAdView extends WebView {
 
         Log.d("Ads/AdButler", "In AdButlerAdView.fetchAd()");
         if (mListener == null) {
-            Log.e("Ads/AdButler", "Ad listener was not set, do NOT proceed. Terminating AdButler ad request.");
+            Log.e("Ads/AdButler", "Exception: Ad Listener has been destroyed before we could get started, do not proceed.");
             return;
         }
 
         if (this.accountID == 0 || this.zoneID == 0 || mAdSize == null) {
-            mListener.onAdFetchFailed(AdButlerErrorCode.BAD_REQUEST);
+            try {
+                mListener.onAdFetchFailed(AdButlerErrorCode.BAD_REQUEST);
+            } catch (Exception e) {
+                Log.e("Ads/AdButler", "Exception: Ad Listener has been destroyed before we could report a Bad Request, do not proceed.");
+            }
             return;
         }
 
@@ -218,10 +176,10 @@ public class AdButlerAdView extends WebView {
         this.calculatedLayout = new FrameLayout.LayoutParams(actualRenderWidth, actualRenderHeight);
 
         // WebView settings
-        WebSettings settings = this.getSettings();
-        settings.setJavaScriptEnabled(true);
-        settings.setDomStorageEnabled(true);
-        settings.setDefaultTextEncodingName("utf-8");
+        WebSettings adViewSettings = this.getSettings();
+        adViewSettings.setJavaScriptEnabled(true);
+        adViewSettings.setDomStorageEnabled(true);
+        adViewSettings.setDefaultTextEncodingName("utf-8");
 
         // Disable scrolling
         this.setScrollContainer(false);
@@ -278,6 +236,9 @@ public class AdButlerAdView extends WebView {
         // Begin request build.
         PlacementRequestConfig.Builder requestBuilder = new PlacementRequestConfig.Builder(this.accountID, this.zoneID, this.zoneWidth, this.zoneHeight);
 
+        // Proper User Agent
+        requestBuilder.setUserAgent(adViewSettings.getUserAgentString());
+
         // Advertising ID & DNT
         if (null != AdButler.AdvertisingInfo.advertisingId) {
             requestBuilder
@@ -314,6 +275,7 @@ public class AdButlerAdView extends WebView {
         // App
         requestBuilder.setAppName(appInfo.appName);
         requestBuilder.setAppPackageName(appInfo.packageName);
+        requestBuilder.setAppVersion(appInfo.appVersion);
 
         // Device
         requestBuilder.setLanguage(deviceInfo.language);
@@ -356,70 +318,21 @@ public class AdButlerAdView extends WebView {
                     Log.d("Ads/AdButler", "BannerID: " + placementEl.getBannerId());
                 }
 
-                if (null == adView.mListener) {
-                    Log.e("Ads/AdButler", "Ad listener was null despite the earlier check.");
-                    return;
-                }
-
                 if (response.getPlacements().size() > 0) {
                     placement = response.getPlacements().get(0);
                 }
 
 
                 if (null == placement) {
-                    adView.mListener.onAdFetchFailed(AdButlerErrorCode.NO_INVENTORY);
+                    Log.d("Ads/AdButler", "No ads to show, deferring to AdMob.");
+                    try {
+                        adView.mListener.onAdFetchFailed(AdButlerErrorCode.NO_INVENTORY);
+                    } catch (Exception e) {
+                        Log.e("Ads/AdButler", "Exception: adView was destroyed before we could report onAdFetchFailed.");
+                    }
 
                 } else {
-                    // Register the selected placement.
-                    adView.placement = placement;
-
                     placementRedirectURL = placement.getRedirectUrl();
-
-                    // Set up the OnTouchListener
-                    adView.setOnTouchListener(new View.OnTouchListener() {
-//                        private static final int MAX_CLICK_DURATION = 200;
-//                        private long clickStartTime;
-
-                        @Override
-                        public boolean onTouch(View view, MotionEvent motionEvent) {
-                            boolean preventTouch = false;
-
-                            switch (motionEvent.getAction()) {
-//                                case MotionEvent.ACTION_DOWN:
-//                                    clickStartTime = Calendar.getInstance().getTimeInMillis();
-//                                    preventTouch = true;
-//                                    break;
-//
-//                                case MotionEvent.ACTION_UP:
-//                                    long clickDuration = Calendar.getInstance().getTimeInMillis() - clickStartTime;
-//                                    if (clickDuration < MAX_CLICK_DURATION) {
-//                                        Intent intent = new Intent(Intent.ACTION_VIEW);
-//                                        intent.setData(Uri.parse(placementRedirectURL));
-//                                        adView.getContext().startActivity(intent);
-//                                        preventTouch = false;
-//                                    }
-//                                    break;
-
-                                case MotionEvent.ACTION_MOVE:
-                                    preventTouch = true;
-                                    break;
-                            }
-
-                            return preventTouch;
-                        }
-                    });
-
-                    // Register onPageFinished event in the WebView to record an impression.
-                    adView.setWebViewClient(new WebViewClient() {
-                        @Override
-                        public void onPageFinished(WebView view, String url) {
-                            super.onPageFinished(view, url);
-
-                            // Fetch successful, record an impression.
-                            Log.d("Ads/AdButler", "WebView load complete, recording impression event.");
-                            adView.placement.recordImpression();
-                        }
-                    });
 
                     // Prepare the markup returned by the request.
                     if (placement.getBody().length() > 0) {
@@ -458,40 +371,142 @@ public class AdButlerAdView extends WebView {
                     } else {
                         Log.d("Ads/AdButler", "Placement response was not in an expected format, serving a blank.");
                     }
-                    //adView.loadData(markup, "text/html; charset=utf-8", "UTF-8");
-                    //adView.loadDataWithBaseURL("http://servedbyadbutler.com/placeholder.html", markup, "text/html", "US-ASCII", null);
-                    adView.loadDataWithBaseURL("http://servedbyadbutler.com/placeholder.html", markup, "text/html; charset=utf-8", "UTF-8", null);
 
-                    // Fetch successful, record an impression.
-                    //placement.recordImpression();
+                    try {
+                        // Register the selected placement.
+                        adView.placement = placement;
 
-                    // Register successful ad fetch.
-                    Log.d("Ads/AdButler", "Loading ad markup into view.");
-                    adView.mListener.onAdFetchSucceeded();
+                        // Set up the OnTouchListener
+                        adView.setOnTouchListener(new View.OnTouchListener() {
+                            private static final int MAX_CLICK_DURATION = 50;
+                            private long clickStartTime;
+
+                            @Override
+                            public boolean onTouch(View view, MotionEvent motionEvent) {
+                                boolean preventTouch = false;
+
+                                switch (motionEvent.getAction()) {
+                                    case MotionEvent.ACTION_DOWN:
+                                        clickStartTime = Calendar.getInstance().getTimeInMillis();
+                                        break;
+
+                                    case MotionEvent.ACTION_UP:
+                                        Rect rect = new Rect();
+                                        getHitRect(rect);
+                                        if (rect.contains((int) motionEvent.getX(), (int) motionEvent.getY())) {
+                                            long clickDuration = Calendar.getInstance().getTimeInMillis() - clickStartTime;
+                                            adView.suppressCurrentClick = clickDuration < MAX_CLICK_DURATION;
+                                        } else {
+                                            Log.d("Ads/AdButler", "Touch release did not occur over the ad view.");
+                                        }
+                                        break;
+
+                                    case MotionEvent.ACTION_MOVE:
+                                        preventTouch = true;
+                                        break;
+                                }
+
+                                return preventTouch;
+                            }
+                        });
+
+                        // Register onPageFinished event in the WebView to record an impression.
+                        adView.setWebViewClient(new WebViewClient() {
+
+                            @Override
+                            public void onPageFinished(WebView view, String url) {
+                                super.onPageFinished(view, url);
+
+                                if (!adView.isImpressionRecorded) {
+                                    adView.isImpressionRecorded = true;
+                                    // Fetch successful, record an impression.
+                                    Log.d("Ads/AdButler", "WebView load complete, recording impression event.");
+                                    adView.placement.recordImpression();
+                                }
+                            }
+
+                            @Override
+                            public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                                if (url != null && !adView.suppressCurrentClick && (url.startsWith("http://") || url.startsWith("https://"))) {
+                                    Log.d("Ads/AdButler", "Received click interaction, loading intent in default browser. (" + url + ")");
+                                    view.getContext().startActivity(
+                                            new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+                                } else {
+                                    Log.d("Ads/AdButler", "Received click interaction, suppressed due to likely false tap event. (" + url + ")");
+                                }
+                                return true;
+                            }
+
+                            //
+                            // DEBUGGING
+                            //
+
+                            @Override
+                            public void onPageStarted(WebView view, String url, Bitmap favicon) {
+                                Log.d("Ads/AdButler", "onPageStarted: " + url);
+                                super.onPageStarted(view, url, favicon);
+                            }
+
+                            @Override
+                            public void onLoadResource(WebView view, String url) {
+                                Log.d("Ads/AdButler", "Loading URL: " + url);
+                                super.onLoadResource(view, url);
+                            }
+
+                            @Override
+                            public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
+                                Log.d("Ads/AdButler", "onReceivedError: " + failingUrl);
+                                Log.d("Ads/AdButler", "onReceivedError Error: " + errorCode + ", " + description);
+                                super.onReceivedError(view, errorCode, description, failingUrl);
+                            }
+
+                            @TargetApi(Build.VERSION_CODES.M)
+                            @Override
+                            public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+                                Log.d("Ads/AdButler", "onReceivedError: " + request.getUrl());
+                                Log.d("Ads/AdButler", "onReceivedError Error: " + error.getErrorCode() + ", " + error.getDescription());
+                                super.onReceivedError(view, request, error);
+                            }
+
+                            @TargetApi(Build.VERSION_CODES.M)
+                            @Override
+                            public void onReceivedHttpError(WebView view, WebResourceRequest request, WebResourceResponse errorResponse) {
+                                Log.d("Ads/AdButler", "onReceivedHttpError: " + request.getUrl());
+                                Log.d("Ads/AdButler", "onReceivedHttpError Status: " + errorResponse.getStatusCode());
+                                super.onReceivedHttpError(view, request, errorResponse);
+                            }
+
+                            @Override
+                            public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
+                                Log.d("Ads/AdButler", "onReceivedSslError: " + error.getUrl());
+                                Log.d("Ads/AdButler", "onReceivedSslError Status: " + error.getPrimaryError());
+                                super.onReceivedSslError(view, handler, error);
+                            }
+                        });
+
+                        // Load the data into the view.
+                        Log.d("Ads/AdButler", "Loading ad markup into view.");
+                        adView.loadDataWithBaseURL("http://servedbyadbutler.com/placeholder.html", markup, "text/html; charset=utf-8", "UTF-8", null);
+
+                        // Register successful ad fetch.
+                        adView.mListener.onAdFetchSucceeded();
+
+                    } catch (Exception e) {
+                        Log.e("Ads/AdButler", "Exception: adView was destroyed before we were able to complete this response.");
+                    }
                 }
             }
 
             @Override
             public void error(Throwable throwable) {
                 Log.d("Ads/AdButler", "Zone request error occurred.");
-                adView.mListener.onAdFetchFailed(AdButlerErrorCode.NETWORK_ERROR);
+                try {
+                    adView.mListener.onAdFetchFailed(AdButlerErrorCode.NETWORK_ERROR);
+                } catch (Exception e) {
+                    Log.e("Ads/AdButler", "Exception: adView was destroyed before we could report onAdFetchFailed.");
+                }
             }
         });
-    }
-
-    @Override
-    public boolean performClick() {
-        return super.performClick();
-    }
-
-    @Override
-    protected void onDraw(Canvas canvas) {
-        super.onDraw(canvas);
-
-        // Before final draw, set the calculated layout to correctly indicate the dimensions of the ad.
-        if (null != this.calculatedLayout) {
-            this.setLayoutParams(this.calculatedLayout);
-        }
     }
 
     private String EscapeJavaScriptString(String param) {
@@ -536,5 +551,20 @@ public class AdButlerAdView extends WebView {
      */
     public void destroy() {
         mListener = null;
+    }
+
+    @Override
+    public boolean performClick() {
+        return super.performClick();
+    }
+
+    @Override
+    protected void onDraw(Canvas canvas) {
+        super.onDraw(canvas);
+
+        // Before final draw, set the calculated layout to correctly indicate the dimensions of the ad.
+        if (null != this.calculatedLayout) {
+            this.setLayoutParams(this.calculatedLayout);
+        }
     }
 }
