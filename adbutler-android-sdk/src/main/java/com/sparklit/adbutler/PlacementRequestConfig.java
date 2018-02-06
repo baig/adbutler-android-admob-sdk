@@ -38,6 +38,7 @@ public class PlacementRequestConfig {
     private String userAgent;
     private String appName;
     private String appPackageName;
+    private String appVersion;
 
 
     /**
@@ -182,6 +183,10 @@ public class PlacementRequestConfig {
         return appPackageName;
     }
 
+    public String getAppVersion() {
+        return appVersion;
+    }
+
 
     /**
      * Builder to configure the parameters used in requesting a Placement.
@@ -218,6 +223,7 @@ public class PlacementRequestConfig {
         private String userAgent;
         private String appName;
         private String appPackageName;
+        private String appVersion;
 
         /**
          * @param accountId The account ID for this request.
@@ -392,6 +398,11 @@ public class PlacementRequestConfig {
             return this;
         }
 
+        public Builder setAppVersion(String appVersion) {
+            this.appPackageName = appVersion;
+            return this;
+        }
+
         /**
          * @return The PlacementRequestConfig that can be used in requesting a Placement.
          */
@@ -432,5 +443,6 @@ public class PlacementRequestConfig {
         userAgent = builder.userAgent;
         appName = builder.appName;
         appPackageName = builder.appPackageName;
+        appVersion = builder.appVersion;
     }
 }

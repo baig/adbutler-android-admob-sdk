@@ -7,10 +7,12 @@ public class AdButlerAppInfo {
 
     public String packageName;
     public String appName;
+    public String appVersion;
 
     public void initialize(Context context) {
         appName = getApplicationName(context);
         packageName = context.getPackageName();
+        appVersion = BuildConfig.VERSION_NAME;
     }
 
     private String getApplicationName(Context context) {

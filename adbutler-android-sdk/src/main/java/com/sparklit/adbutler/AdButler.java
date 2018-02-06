@@ -193,6 +193,17 @@ public class AdButler {
             urlString += keywordsQuery;
         }
 
+        // User Agent
+        if (config.getUserAgent() != null && config.getUserAgent().length() > 0) {
+            urlString += ";ua=" + encodeParam(config.getUserAgent());
+        }
+
+        // IP
+        if (config.getIp() != null) {
+            urlString += ";ip=" + encodeParam(config.getIp());
+        }
+
+        // Advertising ID
         if (config.getAdvertisingId() != null) {
             urlString += ";aduid=" + encodeParam(config.getAdvertisingId());
             urlString += ";dnt=" + config.getDoNotTrack();
@@ -270,6 +281,9 @@ public class AdButler {
         }
         if (null != config.getAppPackageName()) {
             urlString += ";appcode=" + encodeParam(config.getAppPackageName());
+        }
+        if (null != config.getAppVersion()) {
+            urlString += ";appversion=" + encodeParam(config.getAppVersion());
         }
 
         // Flags
